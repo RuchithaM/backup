@@ -6,11 +6,9 @@ from imutils import face_utils
 from converter import MorseToText
 from collections import deque
 from morselcd import lcd
-from time import sleep
-import board
-from digitalio import DigitalInOut
-from adafruit_character_lcd.character_lcd import Character_LCD_Mono
-        
+import requests
+final_string = ""
+      
 
 
 
@@ -36,18 +34,7 @@ class decipher():
 
         (self.lStart, self.lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
         (self.rStart, self.rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
-        self.lcd_columns = 16
-        self.lcd_rows = 2
-        self.lcd_rs = DigitalInOut(board.D26)
-        self.lcd_en = DigitalInOut(board.D19)
-        self.lcd_d4 = DigitalInOut(board.D13)
-        self.lcd_d5 = DigitalInOut(board.D6)
-        self.lcd_d6 = DigitalInOut(board.D5)
-        self.lcd_d7 = DigitalInOut(board.D11)
-        global lcd
-        self.lcd = Character_LCD_Mono(
-            self.lcd_rs, self.lcd_en, self.lcd_d4, self.lcd_d5, self.lcd_d6, self.lcd_d7, self.lcd_columns, self.lcd_rows
-        )
+        
         
     
     def eye_aspect_ratio(self,eye):
@@ -91,7 +78,7 @@ class decipher():
                         print("Eyes have been closed for 15 frames!")
 
                         self.L.append(".")
-                        self.lcd.message=self.L
+                        lcd.morsetolcd(self.L)
                         self.pts = deque(maxlen=512)
                         break
 
@@ -99,7 +86,7 @@ class decipher():
                         print("Eyes have been closed for 40 frames!")
 
                         self.L.append("-")
-                        self.lcd.message=self.L
+                        lcd.morsetolcd(self.L)
                         self.pts = deque(maxlen=512)
                         break
 
@@ -120,7 +107,6 @@ class decipher():
             print(self.L)
         if self.openEye > 30:
             if (self.L != []):
-                #morsetolcd(self.L)
                 
                 print(self.L)
             self.str = MorseToText(''.join(self.L))
@@ -128,12 +114,11 @@ class decipher():
             
 
             if self.str != None:
-                #print(self.str)
+                print(self.str)
                 self.finalString.append(self.str)
-                
                 self.final = ''.join(self.finalString)
-                self.lcd.clear()
-                self.lcd.message=self.finalString
+                lcd.clear()
+                lcd.morsetolcd(self.final)
                 #sleep(5)
                 #self.lcd.clear()
             if self.str == None:
@@ -142,8 +127,9 @@ class decipher():
             
         cv2.putText(frame, "Predicted :  " + self.final, (10, 350),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 219), 2)
-        #self.lcd.clear()
-        #self.lcd.message=self.final
+        
+        global final_string
+        final_string= self.final
         return frame
 
 
@@ -159,8 +145,15 @@ def main():
         cv2.imshow("Morse_Decipher", frame)
         
         key = cv2.waitKey(1) & 0xFF
+        if key == (9):
+            print(final_string)
+            url = 'https://maker.ifttt.com/trigger/SMS_from_morsecode/with/key/csIdOV6q2qG81d07AyIVzm'
+            payload = {"value1": final_string}
+            headers = {}
+            res = requests.post(url, data=payload, headers=headers)
         if key == (27):
             break
+    lcd.clear()
     cv2.destroyAllWindows()
     cap.stop()
     
